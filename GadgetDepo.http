@@ -1,0 +1,37 @@
+@baseUrl = http://localhost:5157
+
+### 200 OK - list products
+GET {{baseUrl}}/api/products
+Accept: application/json
+
+### 200 OK - get product 42
+GET {{baseUrl}}/api/products/42
+Accept: application/json
+
+### 404 Not Found
+GET {{baseUrl}}/api/products/999
+Accept: application/json
+
+### 201 Created
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Nova USB-C Hub",
+  "price": 79.99,
+  "description": "A compact USB-C hub for a clean desk setup.",
+  "category": "Accessories"
+}
+
+### 400 Bad Request
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "name": "",
+  "price": 0
+}
+
+### 204 No Content - delete a created product (replace 45 if needed)
+DELETE {{baseUrl}}/api/products/45
