@@ -1,14 +1,35 @@
 using System.Collections.Concurrent;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<ProductRepository>();
+
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = DemoBearerAuthenticationHandler.SchemeName;
+        options.DefaultChallengeScheme = DemoBearerAuthenticationHandler.SchemeName;
+        options.DefaultForbidScheme = DemoBearerAuthenticationHandler.SchemeName;
+    })
+    .AddScheme<AuthenticationSchemeOptions, DemoBearerAuthenticationHandler>(
+        DemoBearerAuthenticationHandler.SchemeName,
+        _ => { });
+
+builder.Services
+    .AddAuthorizationBuilder()
+    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
 
 var app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Public product endpoints used in the REST APIs Explained Visually video.
 app.MapGet("/api/products", (ProductRepository repo) =>
 {
     return Results.Ok(repo.GetAll());
@@ -17,7 +38,9 @@ app.MapGet("/api/products", (ProductRepository repo) =>
 app.MapGet("/api/products/{id:int}", (int id, ProductRepository repo) =>
 {
     var product = repo.GetById(id);
-    return product is null ? Results.NotFound(new { message = $"Product {id} was not found." }) : Results.Ok(product);
+    return product is null
+        ? Results.NotFound(new { message = $"Product {id} was not found." })
+        : Results.Ok(product);
 });
 
 app.MapPost("/api/products", (CreateProductRequest request, ProductRepository repo, HttpContext http) =>
@@ -35,13 +58,68 @@ app.MapPost("/api/products", (CreateProductRequest request, ProductRepository re
 
 app.MapDelete("/api/products/{id:int}", (int id, ProductRepository repo) =>
 {
-    return repo.Delete(id) ? Results.NoContent() : Results.NotFound(new { message = $"Product {id} was not found." });
+    return repo.Delete(id)
+        ? Results.NoContent()
+        : Results.NotFound(new { message = $"Product {id} was not found." });
 });
+
+// Demo-only login endpoint for Authentication vs Authorization Explained Visually.
+// The credentials and opaque tokens are intentionally simple and are NOT a production auth design.
+app.MapPost("/api/auth/login", (LoginRequest request) =>
+{
+    if (!DemoIdentityStore.TryLogin(request.Username, request.Password, out var identity))
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(new
+    {
+        accessToken = identity.AccessToken,
+        tokenType = "Bearer",
+        user = new
+        {
+            identity.Username,
+            identity.Role
+        }
+    });
+});
+
+// Authentication required: no acceptable identity => authentication challenge (401).
+app.MapGet("/api/orders", (ClaimsPrincipal user) =>
+{
+    var orders = new[]
+    {
+        new { id = 1001, item = "Arc 75 Mechanical Keyboard", total = 99.99m, status = "Shipped" },
+        new { id = 1002, item = "Flux Wireless Mouse", total = 59.99m, status = "Processing" }
+    };
+
+    return Results.Ok(new
+    {
+        customer = user.Identity?.Name,
+        orders
+    });
+})
+.RequireAuthorization();
+
+// Authorization required: an authenticated Customer is forbidden; an Admin is allowed.
+app.MapGet("/api/admin/inventory", () =>
+{
+    return Results.Ok(new
+    {
+        message = "Admin inventory report",
+        lowStock = new[]
+        {
+            new { productId = 42, name = "Arc 75 Mechanical Keyboard", remaining = 7 }
+        }
+    });
+})
+.RequireAuthorization("AdminOnly");
 
 app.MapFallbackToFile("index.html");
 
 app.Run();
 
+record LoginRequest(string Username, string Password);
 record Product(int Id, string Name, decimal Price, string Description, string ImageUrl, string Photographer, string PhotographerUrl, string PhotoUrl, string Category);
 record CreateProductRequest(string Name, decimal Price, string? Description, string? ImageUrl, string? Photographer, string? PhotographerUrl, string? PhotoUrl, string? Category);
 
