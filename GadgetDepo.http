@@ -35,3 +35,52 @@ Content-Type: application/json
 
 ### 204 No Content - delete a created product (replace 45 if needed)
 DELETE {{baseUrl}}/api/products/45
+
+###############################################################################
+# Authentication vs Authorization demo
+# Demo-only credentials/tokens. Do not copy this authentication design to production.
+###############################################################################
+
+### 401 Unauthorized - protected endpoint, no credentials
+GET {{baseUrl}}/api/orders
+Accept: application/json
+
+### Login as customer -> 200 OK + opaque demo bearer token
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "customer",
+  "password": "demo123"
+}
+
+### 200 OK - authenticated customer
+GET {{baseUrl}}/api/orders
+Accept: application/json
+Authorization: Bearer gadget-customer-token
+
+### 403 Forbidden - authenticated, but Customer role does not meet AdminOnly policy
+GET {{baseUrl}}/api/admin/inventory
+Accept: application/json
+Authorization: Bearer gadget-customer-token
+
+### Login as admin -> 200 OK + admin demo bearer token
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### 200 OK - authenticated Admin satisfies AdminOnly policy
+GET {{baseUrl}}/api/admin/inventory
+Accept: application/json
+Authorization: Bearer gadget-admin-token
+
+### 401 Unauthorized - invalid bearer token
+GET {{baseUrl}}/api/orders
+Accept: application/json
+Authorization: Bearer not-a-valid-token
