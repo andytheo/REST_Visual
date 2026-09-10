@@ -20,7 +20,7 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Smoke test REST and auth behavior
+      - name: Smoke test REST, auth, and checkout behavior
         shell: bash
         run: |
           set -euo pipefail
@@ -40,16 +40,24 @@ jobs:
             sleep 1
           done
 
-          # Existing REST demo remains valid.
           test "$(curl -sS -o /tmp/product42.json -w '%{http_code}' http://127.0.0.1:5157/api/products/42)" = "200"
           test "$(curl -sS -o /tmp/product999.json -w '%{http_code}' http://127.0.0.1:5157/api/products/999)" = "404"
 
-          # 1) Unauthenticated request to a protected endpoint -> 401.
+          CHECKOUT=$(curl -fsS \
+            -X POST http://127.0.0.1:5157/api/checkout \
+            -H 'Content-Type: application/json' \
+            -d '{"items":[{"productId":42,"quantity":1}]}')
+          python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["success"] is True; assert data["provider"] == "PayPal"; assert abs(data["total"] - 99.99) < 0.001; assert data["transactionId"].startswith("PP-DEMO-"); assert data["items"][0]["productId"] == 42' <<< "$CHECKOUT"
+
+          test "$(curl -sS -o /tmp/empty-checkout.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:5157/api/checkout \
+            -H 'Content-Type: application/json' \
+            -d '{"items":[]}')" = "400"
+
           test "$(curl -sS -o /tmp/noauth.json -w '%{http_code}' http://127.0.0.1:5157/api/orders)" = "401"
           curl -sS -D /tmp/noauth-headers.txt -o /dev/null http://127.0.0.1:5157/api/orders
           grep -qi '^WWW-Authenticate: Bearer' /tmp/noauth-headers.txt
 
-          # Obtain the customer demo token through the same login call used in Postman.
           CUSTOMER_LOGIN=$(curl -fsS \
             -X POST http://127.0.0.1:5157/api/auth/login \
             -H 'Content-Type: application/json' \
@@ -57,22 +65,18 @@ jobs:
           CUSTOMER_TOKEN=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["accessToken"])' <<< "$CUSTOMER_LOGIN")
           test "$CUSTOMER_TOKEN" = "gadget-customer-token"
 
-          # 2) Authenticated request to an endpoint the customer may use -> 200.
           test "$(curl -sS -o /tmp/orders.json -w '%{http_code}' \
             -H "Authorization: Bearer $CUSTOMER_TOKEN" \
             http://127.0.0.1:5157/api/orders)" = "200"
 
-          # 3) Same authenticated customer, but an Admin-only endpoint -> 403.
           test "$(curl -sS -o /tmp/forbidden.json -w '%{http_code}' \
             -H "Authorization: Bearer $CUSTOMER_TOKEN" \
             http://127.0.0.1:5157/api/admin/inventory)" = "403"
 
-          # Invalid bearer credentials also fail authentication -> 401.
           test "$(curl -sS -o /tmp/invalid-token.json -w '%{http_code}' \
             -H 'Authorization: Bearer not-a-valid-token' \
             http://127.0.0.1:5157/api/orders)" = "401"
 
-          # Admin role satisfies the AdminOnly authorization policy -> 200.
           ADMIN_LOGIN=$(curl -fsS \
             -X POST http://127.0.0.1:5157/api/auth/login \
             -H 'Content-Type: application/json' \

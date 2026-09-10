@@ -8,14 +8,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/checkout.css" />
 </head>
 <body>
   <header class="site-header">
     <a class="brand" href="#">Gadget <span>Depo</span></a>
-    <nav>
-      <a href="#products">Products</a>
-      <a href="#about">About</a>
-    </nav>
+    <div class="header-actions">
+      <nav>
+        <a href="#products">Products</a>
+        <a href="#about">About</a>
+      </nav>
+      <button class="cart-button" id="cartButton" type="button" aria-label="Open cart">
+        Cart <span id="cartCount">0</span>
+      </button>
+    </div>
   </header>
 
   <main>
@@ -23,7 +29,7 @@
       <div class="hero-copy">
         <p class="eyebrow">Simple tech. Clean desk.</p>
         <h1>Everyday gadgets,<br><span>without the clutter.</span></h1>
-        <p class="hero-text">A tiny storefront built to make REST API requests easy to see, test, and explain.</p>
+        <p class="hero-text">A tiny storefront built to make software concepts easy to see, test, and explain.</p>
         <a class="primary-button" href="#products">Browse products</a>
       </div>
       <div class="hero-card">
@@ -42,7 +48,7 @@
           <p class="eyebrow">Featured</p>
           <h2>Desk essentials</h2>
         </div>
-        <p class="section-copy">Click a product to trigger a real API request and see the response.</p>
+        <p class="section-copy">Open a product, add it to your cart, and run through a simulated checkout.</p>
       </div>
 
       <div id="productGrid" class="product-grid" aria-live="polite"></div>
@@ -51,14 +57,14 @@
     <section class="api-panel" id="about">
       <div>
         <p class="eyebrow">Under the hood</p>
-        <h2>One click. One request. One response.</h2>
-        <p>The storefront calls the ASP.NET Core API directly. Open your browser DevTools Network tab while clicking a product to watch the request happen.</p>
+        <h2>One app. Multiple software concepts.</h2>
+        <p>Gadget Depo powers the REST, authentication, and dependency-injection demos with a small ASP.NET Core API.</p>
       </div>
       <div class="endpoint-list">
         <code>GET /api/products</code>
         <code>GET /api/products/42</code>
-        <code>POST /api/products</code>
-        <code>DELETE /api/products/42</code>
+        <code>POST /api/checkout</code>
+        <code>GET /api/orders</code>
       </div>
     </section>
   </main>
@@ -68,8 +74,13 @@
     <div id="dialogContent"></div>
   </dialog>
 
+  <dialog id="checkoutDialog" class="checkout-dialog">
+    <button class="dialog-close" id="closeCheckout" aria-label="Close checkout">×</button>
+    <div id="checkoutContent"></div>
+  </dialog>
+
   <footer>
-    <span>Gadget Depo · REST API visual demo</span>
+    <span>Gadget Depo · software engineering visual demo</span>
     <span>Product photography credited to Unsplash contributors.</span>
   </footer>
 
